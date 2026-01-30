@@ -287,6 +287,35 @@ Invalid line format`;
     assert.strictEqual(deadCodeItems[0].filePath, "/absolute/path/to/file.py");
   });
 
+  test("parseVultureOutput should keep Windows absolute paths unchanged on Windows", function () {
+    // Skip this test on non-Windows platforms since path.isAbsolute() is platform-specific
+    if (process.platform !== "win32") {
+      this.skip();
+      return;
+    }
+
+    // Create mock Vulture output with Windows absolute paths
+    const mockOutput = `C:\\Users\\user\\project\\file.py:10: unused function 'unused_function' (90% confidence)`;
+
+    const mockResult: ProcessResult = {
+      stdout: mockOutput,
+      stderr: "",
+      code: 3,
+    };
+
+    const workspacePath = "C:\\Users\\user\\workspace";
+
+    // Parse the output with workspace path
+    const deadCodeItems = parseVultureOutput(mockResult, workspacePath);
+
+    // Verify the results - Windows absolute path should remain unchanged
+    assert.strictEqual(deadCodeItems.length, 1);
+    assert.strictEqual(
+      deadCodeItems[0].filePath,
+      "C:\\Users\\user\\project\\file.py"
+    );
+  });
+
   test("parseVultureOutput should handle relative paths without workspace path", () => {
     // Create mock Vulture output with relative paths
     const mockOutput = `src/file.py:10: unused function 'unused_function' (90% confidence)`;
