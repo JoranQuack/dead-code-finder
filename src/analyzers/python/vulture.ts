@@ -299,8 +299,12 @@ export async function runVultureAnalysis(
       return result;
     }
 
+    // Get workspace path for resolving relative file paths
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    const workspacePath = workspaceFolders?.[0]?.uri.fsPath;
+
     // Parse output
-    result.deadCodeItems = parseVultureOutput(processResult);
+    result.deadCodeItems = parseVultureOutput(processResult, workspacePath);
     result.success = true;
 
     Logger.info(`Vulture found ${result.deadCodeItems.length} dead code items`);
@@ -315,9 +319,12 @@ export async function runVultureAnalysis(
 
 /**
  * Parse the output from Vulture into DeadCodeItem objects
+ * @param processResult The result from the Vulture process execution
+ * @param workspacePath Optional workspace path to resolve relative file paths
  */
 export function parseVultureOutput(
-  processResult: ProcessResult
+  processResult: ProcessResult,
+  workspacePath?: string
 ): DeadCodeItem[] {
   const items: DeadCodeItem[] = [];
 
@@ -336,8 +343,14 @@ export function parseVultureOutput(
     if (match) {
       const [_, filePath, lineNumber, type, name, confidence] = match;
 
+      // Resolve relative paths to absolute paths using the workspace path
+      let resolvedFilePath = filePath;
+      if (workspacePath && !path.isAbsolute(filePath)) {
+        resolvedFilePath = path.resolve(workspacePath, filePath);
+      }
+
       items.push({
-        filePath: filePath,
+        filePath: resolvedFilePath,
         lineNumber: parseInt(lineNumber, 10),
         name: name,
         type: type,
