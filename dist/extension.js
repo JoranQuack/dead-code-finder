@@ -911,6 +911,7 @@ exports.installVulture = installVulture;
 exports.runVultureAnalysis = runVultureAnalysis;
 exports.parseVultureOutput = parseVultureOutput;
 const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(4));
 const fs = __importStar(__webpack_require__(8));
 const process_1 = __webpack_require__(9);
 const logging_1 = __webpack_require__(2);
@@ -1149,8 +1150,11 @@ async function runVultureAnalysis(paths, minConfidence = 60) {
             }
             return result;
         }
+        // Get workspace path for resolving relative file paths
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const workspacePath = workspaceFolders?.[0]?.uri.fsPath;
         // Parse output
-        result.deadCodeItems = parseVultureOutput(processResult);
+        result.deadCodeItems = parseVultureOutput(processResult, workspacePath);
         result.success = true;
         logging_1.Logger.info(`Vulture found ${result.deadCodeItems.length} dead code items`);
         return result;
@@ -1164,8 +1168,10 @@ async function runVultureAnalysis(paths, minConfidence = 60) {
 }
 /**
  * Parse the output from Vulture into DeadCodeItem objects
+ * @param processResult The result from the Vulture process execution
+ * @param workspacePath Optional workspace path to resolve relative file paths
  */
-function parseVultureOutput(processResult) {
+function parseVultureOutput(processResult, workspacePath) {
     const items = [];
     if (!processResult.stdout) {
         return items;
@@ -1178,8 +1184,13 @@ function parseVultureOutput(processResult) {
         const match = line.match(VULTURE_OUTPUT_PATTERN);
         if (match) {
             const [_, filePath, lineNumber, type, name, confidence] = match;
+            // Resolve relative paths to absolute paths using the workspace path
+            let resolvedFilePath = filePath;
+            if (workspacePath && !path.isAbsolute(filePath)) {
+                resolvedFilePath = path.resolve(workspacePath, filePath);
+            }
             items.push({
-                filePath: filePath,
+                filePath: resolvedFilePath,
                 lineNumber: parseInt(lineNumber, 10),
                 name: name,
                 type: type,
